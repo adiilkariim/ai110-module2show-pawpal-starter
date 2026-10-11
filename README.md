@@ -96,19 +96,40 @@ Why this plan:
 
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
+Run the full test suite from the project folder:
 
-# Run with coverage:
-pytest --cov
+```bash
+python -m pytest
 ```
+
+### What the tests cover
+
+The suite in `tests/test_pawpal.py` has 21 tests:
+
+- **Core behavior:** `mark_complete()` changes a task's status, and `add_task()` increases a pet's task count.
+- **Sorting:** tasks come out in chronological order across pets, and priority sorting puts high before medium before low, with the owner's preferred category breaking ties.
+- **Recurrence:** completing a daily task creates a new task for the next day, a weekly task comes back 7 days later, a one-time task doesn't recur, completing a task twice doesn't create duplicates, and tomorrow's copy appears in tomorrow's plan, not today's.
+- **Conflict detection:** two tasks at the exact same time are flagged, overlaps between different pets are flagged, and tasks that only touch (one ends when the next starts) or fall on different days are not.
+- **Time budget and filtering:** tasks that don't fit the available time are skipped with a reason while smaller tasks can still fit, and completed tasks are left out without being listed as skipped.
+- **Edge cases:** a pet with no tasks, an owner with no pets, invalid input (bad priority, bad time, zero duration, a task running past midnight), and `edit_task()` applying all changes or none.
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+================================================================== test session starts ==================================================================
+platform win32 -- Python 3.13.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\user4\Desktop\ai110-module2show-pawpal-starter
+plugins: anyio-4.15.1
+collected 21 items
+
+tests\test_pawpal.py .....................                                                                                                         [100%]
+
+================================================================== 21 passed in 0.08s ===================================================================
 ```
+
+### Confidence level
+
+★★★★☆ (4/5): all 21 tests pass, covering each scheduling feature plus edge cases. One star is held back because the scheduler fills time by priority, which isn't always the best possible fit, and a daily task that isn't completed doesn't carry over to the next day.
 
 ## 📐 Smarter Scheduling
 

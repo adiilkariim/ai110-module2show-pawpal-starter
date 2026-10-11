@@ -17,6 +17,7 @@ classDiagram
         +add_task(task: Task) None
         +remove_task(task: Task) None
         +edit_task(task: Task, changes: dict) None
+        +complete_task(task: Task) Task
         +get_tasks() list~Task~
         +get_task_count() int
     }
@@ -29,14 +30,18 @@ classDiagram
         +str category
         +str frequency
         +bool is_complete
+        +date due_date
         +mark_complete() None
         +get_duration() int
+        +next_occurrence() Task
     }
 
     class Scheduler {
         +Owner owner
+        +date plan_date
         +get_all_tasks() list~tuple~
         +sort_tasks(tasks: list~tuple~) list~tuple~
+        +sort_by_time(tasks: list~tuple~) list~tuple~
         +filter_tasks(tasks: list~tuple~) tuple
         +check_conflicts(tasks: list~tuple~) list~str~
         +generate_plan() DailyPlan
@@ -53,6 +58,7 @@ classDiagram
 
     class DailyPlan {
         +str owner_name
+        +date plan_date
         +int available_minutes
         +int minutes_requested
         +int minutes_used
@@ -66,7 +72,7 @@ classDiagram
         +get_time_summary() str
     }
 
-    note "Module helpers: PRIORITY_ORDER, time_to_minutes(), minutes_to_time()"
+    note "Module helpers: PRIORITY_ORDER, RECURRENCE_DAYS, time_to_minutes(), minutes_to_time()"
 
     Owner "1" --> "0..*" Pet : owns
     Pet "1" --> "0..*" Task : has

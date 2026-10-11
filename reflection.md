@@ -23,7 +23,7 @@ When I reviewed the first AI-drafted diagram, I found gaps and added them: `Owne
 ### Classes and responsibilities
 - **Owner**: holds the owner's name, daily available minutes, preferences, and list of pets. It can add or remove pets, update preferences, and return every task across all of its pets.
 - **Pet**: holds the pet's name, species, and care tasks. It can add, edit, remove, and list tasks and report how many it has.
-- **Task**: one care activity (walk, feeding, meds, grooming, etc.) with a description, due time, duration, priority, category, frequency (daily or weekly), and completion status. It can mark itself complete and report its duration.
+- **Task**: one care activity (walk, feeding, meds, grooming, etc.) with a description, due time, duration, priority, category, frequency (once, daily, or weekly), due date, and completion status. It can mark itself complete and report its duration.
 - **Scheduler**: the "brain" of the app. It works from the owner, so it handles tasks across all pets. It sorts tasks by priority and due time, filters out completed tasks and ones that don't fit in the available time, flags tasks whose times overlap, and generates the daily plan.
 - **DailyPlan**: the result for the owner's day. It stores the scheduled tasks, the skipped tasks, and the reasoning, and it can display the plan and explain why it was built that way.
 - **ScheduledTask**: a small helper that wraps a `Task` with the pet's name, its start time, end time, and the reason it was scheduled.
@@ -46,7 +46,13 @@ While implementing the scheduler, I noticed that the owner's `available_minutes`
 - **Skipped tasks explain the numbers.** Each skipped entry is now `(pet, task, reason)`, with reasons like "needs 20 min, only 5 min left", and `filter_tasks()` returns both the kept and the skipped tasks.
 - **Conflicts got their own list.** Conflict warnings were first mixed into `reasoning` with the general notes. I gave `DailyPlan` a separate `conflicts` list so the schedule can show them in their own "Warnings" section.
 
-I decided not to add recurring task logic yet. A weekly task would need a "last completed" date to know whether it's due, so I'm leaving that as a stretch feature.
+At first I decided not to add recurring task logic, because a weekly task would need a date to know when it's due. When the testing phase required recurrence, I added it:
+
+- **`Task` now has a `due_date`** (today by default), and `frequency` can be `"once"`, `"daily"`, or `"weekly"`.
+- **`Task.next_occurrence()`** returns a fresh copy due 1 day later (daily) or 7 days later (weekly), and nothing for one-time tasks.
+- **`Pet.complete_task()`** marks a task done and adds its next occurrence to the pet. I put this on `Pet` instead of inside `mark_complete()`, because a task doesn't know which pet it belongs to, so it can't add the new copy anywhere.
+- **The `Scheduler` plans one date (`plan_date`).** Without this, completing today's walk would create tomorrow's walk, and that copy would show up in today's plan, use up time, and cause a false conflict. Conflicts are also only checked between tasks on the same day.
+- **Added `sort_by_time()`** so chronological sorting is its own method that can be tested, next to `sort_tasks()` for priority.
 
 ---
 

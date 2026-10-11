@@ -35,7 +35,7 @@ def print_section(title: str) -> None:
 
 
 def main() -> None:
-    """Run the demo: gather tasks, sort them, build the plan, and explain it."""
+    """Run the demo: gather tasks, sort them, build and explain the plan, then show recurrence."""
     owner = build_sample_owner()
     scheduler = Scheduler(owner)
 
@@ -58,6 +58,16 @@ def main() -> None:
 
     print_section("Step 4: Explain the plan")
     print(plan.explain_reasoning())
+
+    print_section("Step 5: Recurring tasks")
+    dog = owner.pets[0]
+    medication = next(task for task in dog.get_tasks() if task.description == "Medication")
+    next_task = dog.complete_task(medication)
+    print(f"  Completed '{medication.description}' ({medication.frequency}) due {medication.due_date}.")
+    print(f"  Next occurrence added for {dog.name}: due {next_task.due_date} at {next_task.due_time}, "
+          f"complete={next_task.is_complete}")
+    still_today = [st.task.description for st in scheduler.generate_plan().scheduled_tasks]
+    print(f"  Rebuilt plan for today: {', '.join(still_today)} (tomorrow's copy is not included)")
 
 
 if __name__ == "__main__":

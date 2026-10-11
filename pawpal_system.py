@@ -1,10 +1,13 @@
 """PawPal+ logic layer: the backend classes for pet care scheduling."""
 
 from dataclasses import dataclass, field, fields, replace
+from datetime import date, datetime, timedelta
 
 # Lower number = scheduled first. Also used to reject invalid priorities.
 PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
-FREQUENCIES = ("daily", "weekly")
+# How many days later a recurring task comes back; "once" tasks don't recur
+RECURRENCE_DAYS = {"daily": 1, "weekly": 7}
+FREQUENCIES = ("once", *RECURRENCE_DAYS)
 LAST_MINUTE_OF_DAY = 23 * 60 + 59  # 23:59; tasks must finish by then
 
 
@@ -39,13 +42,17 @@ class Task:
     duration_minutes: int
     priority: str = "medium"  # a key of PRIORITY_ORDER
     category: str = "general"  # e.g. "walk", "feeding", "meds"
-    frequency: str = "daily"  # "daily" or "weekly"; recurrence is a later stretch feature
+    frequency: str = "daily"  # "once", "daily", or "weekly"
     is_complete: bool = False
+    due_date: date = field(default_factory=date.today)
 
     def __post_init__(self) -> None:
         """Validate the task's fields and normalize its due time to "HH:MM"."""
         if not isinstance(self.description, str) or not self.description.strip():
             raise ValueError("Task description cannot be empty")
+        # datetime is a subclass of date, so rule it out explicitly
+        if not isinstance(self.due_date, date) or isinstance(self.due_date, datetime):
+            raise ValueError("Task due_date must be a date, e.g. date(2026, 10, 10)")
         if self.priority not in PRIORITY_ORDER:
             raise ValueError(
                 f"Invalid priority '{self.priority}', choose from {', '.join(PRIORITY_ORDER)}"
@@ -76,6 +83,13 @@ class Task:
     def get_duration(self) -> int:
         """Return how long this task takes, in minutes."""
         return self.duration_minutes
+
+    def next_occurrence(self) -> "Task | None":
+        """Return a fresh copy of this task for its next due date, or None if it doesn't recur."""
+        if self.frequency not in RECURRENCE_DAYS:
+            return None
+        next_date = self.due_date + timedelta(days=RECURRENCE_DAYS[self.frequency])
+        return replace(self, due_date=next_date, is_complete=False)
 
 
 @dataclass
@@ -109,6 +123,18 @@ class Pet:
         # Copy onto the original so anything already holding this task sees the edit
         for name in allowed:
             setattr(task, name, getattr(validated, name))
+
+    def complete_task(self, task: Task) -> Task | None:
+        """Mark a task done and, if it recurs, add its next occurrence. Returns the new task, if any."""
+        if task not in self.tasks:
+            raise ValueError(f"Task '{task.description}' not found for {self.name}")
+        if task.is_complete:
+            return None  # already done; don't create a second copy of the next occurrence
+        task.mark_complete()
+        next_task = task.next_occurrence()
+        if next_task is not None:
+            self.add_task(next_task)
+        return next_task
 
     def get_tasks(self) -> list[Task]:
         """Return a copy of this pet's tasks."""
@@ -175,6 +201,7 @@ class DailyPlan:
     """The generated schedule for one owner's day."""
 
     owner_name: str
+    plan_date: date = field(default_factory=date.today)
     available_minutes: int = 0
     minutes_requested: int = 0  # total duration of all incomplete tasks
     minutes_used: int = 0  # total duration of the scheduled tasks
@@ -185,8 +212,8 @@ class DailyPlan:
     reasoning: list[str] = field(default_factory=list)
 
     def display_plan(self) -> str:
-        """Return the plan as a readable "Today's Schedule" for the terminal."""
-        title = f"Today's Schedule for {self.owner_name}"
+        """Return the plan as a readable schedule for the terminal."""
+        title = f"Schedule for {self.owner_name} on {self.plan_date:%A, %Y-%m-%d}"
         lines = [title, "=" * len(title)]
 
         if not self.scheduled_tasks:
@@ -254,8 +281,9 @@ class DailyPlan:
 class Scheduler:
     """Builds a daily plan from the tasks of all the owner's pets."""
 
-    def __init__(self, owner: Owner):
+    def __init__(self, owner: Owner, plan_date: date | None = None):
         self.owner = owner
+        self.plan_date = plan_date or date.today()  # only tasks due on this date are planned
 
     def _preferred_categories(self) -> list[str]:
         """Return the owner's preferred categories, lowercased."""
@@ -276,6 +304,10 @@ class Scheduler:
                 time_to_minutes(pair[1].due_time),
             ),
         )
+
+    def sort_by_time(self, tasks: list[tuple[Pet, Task]]) -> list[tuple[Pet, Task]]:
+        """Order tasks chronologically: by due date, then due time."""
+        return sorted(tasks, key=lambda pair: (pair[1].due_date, time_to_minutes(pair[1].due_time)))
 
     def filter_tasks(
         self, tasks: list[tuple[Pet, Task]]
@@ -302,17 +334,18 @@ class Scheduler:
         return kept, skipped
 
     def check_conflicts(self, tasks: list[tuple[Pet, Task]]) -> list[str]:
-        """Return a warning for every pair of tasks whose times overlap, across all pets."""
+        """Return a warning for every pair of same-day tasks whose times overlap, across all pets."""
         timed = []
-        for pet, task in tasks:
+        for pet, task in self.sort_by_time(tasks):
             start = time_to_minutes(task.due_time)
             timed.append((start, start + task.duration_minutes, pet, task))
-        timed.sort(key=lambda item: item[0])
 
         warnings = []
         # Compare every pair, not just neighbours: one long task can overlap several later ones
         for i, (start_a, end_a, pet_a, task_a) in enumerate(timed):
             for start_b, end_b, pet_b, task_b in timed[i + 1:]:
+                if task_a.due_date != task_b.due_date:
+                    continue
                 # Touching tasks (one ends exactly when the next starts) do not overlap
                 if start_a < end_b and start_b < end_a:
                     warnings.append(
@@ -324,14 +357,17 @@ class Scheduler:
         return warnings
 
     def generate_plan(self) -> DailyPlan:
-        """Build today's plan: gather, sort, fit to the time budget, check conflicts, explain."""
+        """Build the plan for plan_date: gather, sort, fit to the time budget, check conflicts, explain."""
         all_tasks = self.get_all_tasks()
-        pending = [(pet, task) for pet, task in all_tasks if not task.is_complete]
+        # Recurring tasks create copies for future dates; only plan the ones due on plan_date
+        days_tasks = [(pet, task) for pet, task in all_tasks if task.due_date == self.plan_date]
+        pending = [(pet, task) for pet, task in days_tasks if not task.is_complete]
         kept, skipped = self.filter_tasks(self.sort_tasks(pending))
         preferred = self._preferred_categories()
 
         plan = DailyPlan(
             owner_name=self.owner.name,
+            plan_date=self.plan_date,
             available_minutes=self.owner.available_minutes,
             minutes_requested=sum(task.duration_minutes for _, task in pending),
             minutes_used=sum(task.duration_minutes for _, task in kept),
@@ -341,7 +377,7 @@ class Scheduler:
 
         # Priority decided which tasks got in; show them in the order the day happens
         minutes_left = plan.available_minutes
-        for pet, task in sorted(kept, key=lambda pair: time_to_minutes(pair[1].due_time)):
+        for pet, task in self.sort_by_time(kept):
             minutes_left -= task.duration_minutes
             reason = f"{task.priority} priority"
             if task.category.lower() in preferred:
@@ -361,6 +397,8 @@ class Scheduler:
 
         if not all_tasks:
             plan.reasoning.append("No tasks to schedule today. Add a pet and some tasks first.")
+        elif not days_tasks:
+            plan.reasoning.append(f"No tasks are due on {self.plan_date:%Y-%m-%d}.")
         elif not pending:
             plan.reasoning.append("All tasks are already complete. Nothing left to schedule today.")
         else:
