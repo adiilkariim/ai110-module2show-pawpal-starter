@@ -44,14 +44,54 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+Output of `python main.py`, which runs the scheduler on sample demo data (one owner with 90 minutes, two pets, six tasks):
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+PawPal+ demo for Sample Owner: 2 pets, 90 min available today
+
+--- Step 1: All tasks across pets ---
+  Dog 1  08:00  Morning walk       30 min  high    (to do)
+  Dog 1  09:00  Medication          5 min  high    (to do)
+  Dog 1  18:00  Fetch play         40 min  medium  (to do)
+  Cat 1  08:15  Breakfast          10 min  high    (to do)
+  Cat 1  10:00  Brush fur          20 min  low     (to do)
+  Cat 1  07:30  Clean litter box    5 min  medium  (done)
+
+--- Step 2: Sorted by priority, then preferred category, then time (before filtering) ---
+  1. Morning walk (Dog 1) [high, walk]
+  2. Breakfast (Cat 1) [high, feeding]
+  3. Medication (Dog 1) [high, meds]
+  4. Clean litter box (Cat 1) [medium, cleaning]
+  5. Fetch play (Dog 1) [medium, play]
+  6. Brush fur (Cat 1) [low, grooming]
+
+--- Step 3: Build the plan ---
+Today's Schedule for Sample Owner
+=================================
+  Time         Task          Pet    Priority  Duration  Time left
+  ---------------------------------------------------------------
+  08:00-08:30  Morning walk  Dog 1  high        30 min     60 min
+  08:15-08:25  Breakfast     Cat 1  high        10 min     50 min
+  09:00-09:05  Medication    Dog 1  high         5 min     45 min
+  18:00-18:40  Fetch play    Dog 1  medium      40 min      5 min
+
+Skipped:
+  - Brush fur (Cat 1): low priority, needs 20 min, only 5 min left
+
+Warnings:
+  ! Conflict: Morning walk (Dog 1) 08:00-08:30 overlaps Breakfast (Cat 1) 08:15-08:25
+
+Time: 85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
+
+--- Step 4: Explain the plan ---
+Why this plan:
+  - Tasks were chosen by priority (high first), then preferred category, then time, until the available time ran out.
+  - 1 task(s) did not fit in the available time and were skipped.
+  - 1 time conflict(s) found. Both tasks stay in the plan, so you can decide which one to move.
+  - Morning walk (Dog 1) at 08:00: high priority, preferred category (walk), fits in your time
+  - Breakfast (Cat 1) at 08:15: high priority, fits in your time
+  - Medication (Dog 1) at 09:00: high priority, fits in your time
+  - Fetch play (Dog 1) at 18:00: medium priority, fits in your time
 ```
 
 ## 🧪 Testing PawPal+
