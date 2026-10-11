@@ -4,8 +4,29 @@
 
 **a. Initial design**
 
-- Briefly describe your initial UML design.
-- What classes did you include, and what responsibilities did you assign to each?
+### Three core actions a user should be able to perform
+
+### 1. Enter owner and pet information
+The user can enter their name, their pet’s name, and select the pet type.
+
+### 2. Add and prioritize care tasks
+The user can create tasks for the pet, assign a duration, and choose a priority level.
+
+### 3. View and organize the daily plan
+The user can review the tasks for the day and see how the app organizes them into a scheduling plan.
+
+### UML design overview
+My design (in `diagrams/uml.mmd`) separates the data from the planning logic. An `Owner` owns one or more `Pet`s, and each `Pet` has its own list of `Task`s. The `Scheduler` takes the owner's available time and preferences, looks at one pet's tasks, and produces a `DailyPlan`. The plan lists each chosen task with a start time and the reason it was picked, plus any tasks that didn't fit.
+
+When I reviewed the first AI-drafted diagram, I found gaps and added them: `Owner` had `add_pet()` but no `pets` list to store them, there was no way to edit or remove a task, the owner's preferences never reached the scheduler, and the plan had no start times.
+
+### Classes and responsibilities
+- **Owner**: holds the owner's name, daily available minutes, preferences, and list of pets. It can add or remove pets and update preferences.
+- **Pet**: holds the pet's name, species, and care tasks. It can add, edit, and remove tasks and report how many it has.
+- **Task**: one care activity (walk, feeding, meds, grooming, etc.) with a title, duration, priority, category, and completion status. It can mark itself complete and report its duration.
+- **Scheduler**: the "brain" of the app. It sorts tasks by priority, filters out tasks that don't fit in the available time, and generates the daily plan starting from a set start time.
+- **DailyPlan**: the result for one pet. It stores the scheduled tasks, the skipped tasks, and the reasoning, and it can display the plan and explain why it was built that way.
+- **ScheduledTask**: a small helper that wraps a `Task` with its start time, end time, and the reason it was scheduled.
 
 **b. Design changes**
 

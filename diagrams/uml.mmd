@@ -1,15 +1,65 @@
 classDiagram
-    %% Replace the placeholders below with your actual classes, attributes, methods, and relationships.
-    %% Keep this file updated so it matches your final implementation.
-
-    class ClassName {
-        +type attribute
-        +method() returnType
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +add_pet(pet: Pet) None
+        +remove_pet(pet: Pet) None
+        +update_preferences(preferences: dict) None
     }
 
-    class AnotherClass {
-        +type attribute
-        +method() returnType
+    class Pet {
+        +str name
+        +str species
+        +list~Task~ tasks
+        +add_task(task: Task) None
+        +remove_task(task: Task) None
+        +edit_task(task: Task, changes: dict) None
+        +get_task_count() int
     }
 
-    ClassName --> AnotherClass : relationship
+    class Task {
+        +str title
+        +int duration_minutes
+        +str priority
+        +str category
+        +bool is_complete
+        +mark_complete() None
+        +get_duration() int
+    }
+
+    class Scheduler {
+        +int available_minutes
+        +dict preferences
+        +str day_start
+        +sort_tasks(tasks: list~Task~) list~Task~
+        +filter_tasks(tasks: list~Task~) list~Task~
+        +generate_plan(pet: Pet) DailyPlan
+    }
+
+    class ScheduledTask {
+        +Task task
+        +str start_time
+        +str end_time
+        +str reason
+    }
+
+    class DailyPlan {
+        +str pet_name
+        +list~ScheduledTask~ scheduled_tasks
+        +list~Task~ skipped_tasks
+        +list~str~ reasoning
+        +display_plan() str
+        +explain_reasoning() str
+    }
+
+    Owner "1" --> "0..*" Pet : owns
+    Pet "1" --> "0..*" Task : has
+    Owner ..> Scheduler : provides time and preferences
+    Scheduler ..> Pet : plans for
+    Scheduler ..> Task : organizes
+    Scheduler ..> DailyPlan : generates
+    DailyPlan --> Pet : for
+    DailyPlan "1" --> "0..*" ScheduledTask : includes
+    ScheduledTask --> Task : wraps
