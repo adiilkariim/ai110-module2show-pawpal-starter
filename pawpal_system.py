@@ -30,10 +30,12 @@ class Task:
         pass
 
     def mark_complete(self) -> None:
-        pass
+        """Mark this task as done."""
+        self.is_complete = True
 
     def get_duration(self) -> int:
-        pass
+        """Return how long this task takes, in minutes."""
+        return self.duration_minutes
 
 
 @dataclass
@@ -45,19 +47,25 @@ class Pet:
     tasks: list[Task] = field(default_factory=list)
 
     def add_task(self, task: Task) -> None:
-        pass
+        """Add a care task to this pet."""
+        self.tasks.append(task)
 
     def remove_task(self, task: Task) -> None:
-        pass
+        """Remove a care task from this pet."""
+        if task not in self.tasks:
+            raise ValueError(f"Task '{task.description}' not found for {self.name}")
+        self.tasks.remove(task)
 
     def edit_task(self, task: Task, changes: dict) -> None:
         pass
 
     def get_tasks(self) -> list[Task]:
-        pass
+        """Return a copy of this pet's tasks."""
+        return list(self.tasks)
 
     def get_task_count(self) -> int:
-        pass
+        """Return how many tasks this pet has."""
+        return len(self.tasks)
 
 
 class Owner:
@@ -71,16 +79,26 @@ class Owner:
         self.pets: list[Pet] = []
 
     def add_pet(self, pet: Pet) -> None:
-        pass
+        """Add a pet, ignoring one that is already added."""
+        # Identity check: two different pets can have equal fields (same name, species, no tasks)
+        if not any(p is pet for p in self.pets):
+            self.pets.append(pet)
 
     def remove_pet(self, pet: Pet) -> None:
-        pass
+        """Remove a pet from this owner."""
+        for i, p in enumerate(self.pets):
+            if p is pet:
+                del self.pets[i]
+                return
+        raise ValueError(f"Pet '{pet.name}' not found for {self.name}")
 
     def update_preferences(self, preferences: dict) -> None:
-        pass
+        """Merge new preferences into the existing ones."""
+        self.preferences.update(preferences)
 
     def get_all_tasks(self) -> list[tuple[Pet, Task]]:
-        pass
+        """Return every task across all pets as (pet, task) pairs."""
+        return [(pet, task) for pet in self.pets for task in pet.tasks]
 
 
 @dataclass
