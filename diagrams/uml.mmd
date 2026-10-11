@@ -35,7 +35,6 @@ classDiagram
 
     class Scheduler {
         +Owner owner
-        +str day_start
         +get_all_tasks() list~tuple~
         +sort_tasks(tasks: list~tuple~) list~tuple~
         +filter_tasks(tasks: list~tuple~) list~tuple~
@@ -54,11 +53,13 @@ classDiagram
     class DailyPlan {
         +str owner_name
         +list~ScheduledTask~ scheduled_tasks
-        +list~Task~ skipped_tasks
+        +list~tuple~ skipped_tasks
         +list~str~ reasoning
         +display_plan() str
         +explain_reasoning() str
     }
+
+    note "Module helpers: PRIORITY_ORDER, time_to_minutes(), minutes_to_time()"
 
     Owner "1" --> "0..*" Pet : owns
     Pet "1" --> "0..*" Task : has

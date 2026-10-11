@@ -2,18 +2,32 @@
 
 from dataclasses import dataclass, field
 
+# Lower number = scheduled first. Also used to reject invalid priorities.
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
-@dataclass
+
+def time_to_minutes(time_str: str) -> int:
+    pass
+
+
+def minutes_to_time(minutes: int) -> str:
+    pass
+
+
+@dataclass(eq=False)  # compare tasks by identity, so identical tasks stay distinct
 class Task:
     """A single pet care activity."""
 
     description: str
     due_time: str  # "HH:MM", e.g. "08:00"
     duration_minutes: int
-    priority: str = "medium"  # "low", "medium", or "high"
+    priority: str = "medium"  # a key of PRIORITY_ORDER
     category: str = "general"  # e.g. "walk", "feeding", "meds"
-    frequency: str = "daily"  # "daily" or "weekly"
+    frequency: str = "daily"  # "daily" or "weekly"; recurrence is a later stretch feature
     is_complete: bool = False
+
+    def __post_init__(self) -> None:
+        pass
 
     def mark_complete(self) -> None:
         pass
@@ -52,6 +66,7 @@ class Owner:
     def __init__(self, name: str, available_minutes: int, preferences: dict | None = None):
         self.name = name
         self.available_minutes = available_minutes
+        # e.g. {"preferred_categories": ["walk"]}, used as a sorting tie-breaker
         self.preferences = preferences or {}
         self.pets: list[Pet] = []
 
@@ -70,7 +85,7 @@ class Owner:
 
 @dataclass
 class ScheduledTask:
-    """A task placed in the plan at a specific time."""
+    """A task placed in the plan at its due time."""
 
     pet_name: str
     task: Task
@@ -85,7 +100,7 @@ class DailyPlan:
 
     owner_name: str
     scheduled_tasks: list[ScheduledTask] = field(default_factory=list)
-    skipped_tasks: list[Task] = field(default_factory=list)
+    skipped_tasks: list[tuple[Pet, Task]] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
 
     def display_plan(self) -> str:
@@ -98,9 +113,8 @@ class DailyPlan:
 class Scheduler:
     """Builds a daily plan from the tasks of all the owner's pets."""
 
-    def __init__(self, owner: Owner, day_start: str = "08:00"):
+    def __init__(self, owner: Owner):
         self.owner = owner
-        self.day_start = day_start
 
     def get_all_tasks(self) -> list[tuple[Pet, Task]]:
         pass
