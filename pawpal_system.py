@@ -181,13 +181,53 @@ class DailyPlan:
     minutes_remaining: int = 0
     scheduled_tasks: list[ScheduledTask] = field(default_factory=list)
     skipped_tasks: list[tuple[Pet, Task, str]] = field(default_factory=list)  # (pet, task, reason)
+    conflicts: list[str] = field(default_factory=list)
     reasoning: list[str] = field(default_factory=list)
 
     def display_plan(self) -> str:
-        pass
+        """Return the plan as a readable "Today's Schedule" for the terminal."""
+        title = f"Today's Schedule for {self.owner_name}"
+        lines = [title, "=" * len(title)]
+
+        if not self.scheduled_tasks:
+            if self.skipped_tasks:
+                lines.append("No tasks fit in your available time today.")
+            else:
+                lines.append(self.reasoning[0] if self.reasoning else "No tasks scheduled today.")
+        else:
+            # Size the text columns to the longest entry so everything lines up
+            task_width = max(len("Task"), *(len(st.task.description) for st in self.scheduled_tasks))
+            pet_width = max(len("Pet"), *(len(st.pet_name) for st in self.scheduled_tasks))
+            lines.append(
+                f"  {'Time':<11}  {'Task':<{task_width}}  {'Pet':<{pet_width}}  "
+                f"{'Priority':<8}  {'Duration':>8}  {'Time left':>9}"
+            )
+            lines.append("  " + "-" * (11 + task_width + pet_width + 8 + 8 + 9 + 10))
+            for st in self.scheduled_tasks:
+                lines.append(
+                    f"  {st.start_time}-{st.end_time}  {st.task.description:<{task_width}}  "
+                    f"{st.pet_name:<{pet_width}}  {st.task.priority:<8}  "
+                    f"{st.task.duration_minutes:>4} min  {st.minutes_left:>5} min"
+                )
+
+        if self.skipped_tasks:
+            lines += ["", "Skipped:"]
+            lines += [f"  - {task.description} ({pet.name}): {reason}" for pet, task, reason in self.skipped_tasks]
+
+        if self.conflicts:
+            lines += ["", "Warnings:"]
+            lines += [f"  ! {conflict}" for conflict in self.conflicts]
+
+        lines += ["", f"Time: {self.get_time_summary()}"]
+        return "\n".join(lines)
 
     def explain_reasoning(self) -> str:
-        pass
+        """Return why the plan was built this way, including why each task was chosen."""
+        lines = ["Why this plan:"]
+        lines += [f"  - {note}" for note in self.reasoning]
+        for st in self.scheduled_tasks:
+            lines.append(f"  - {st.task.description} ({st.pet_name}) at {st.start_time}: {st.reason}")
+        return "\n".join(lines)
 
     def get_time_summary(self) -> str:
         """Describe how the time budget was used, and how far over it the tasks are, if at all."""
@@ -332,5 +372,10 @@ class Scheduler:
                 plan.reasoning.append(
                     f"{len(skipped)} task(s) did not fit in the available time and were skipped."
                 )
-            plan.reasoning.extend(self.check_conflicts(kept))
+            plan.conflicts = self.check_conflicts(kept)
+            if plan.conflicts:
+                plan.reasoning.append(
+                    f"{len(plan.conflicts)} time conflict(s) found. Both tasks stay in the plan, "
+                    "so you can decide which one to move."
+                )
         return plan

@@ -44,6 +44,7 @@ While implementing the scheduler, I noticed that the owner's `available_minutes`
 - **`DailyPlan` now tracks time:** `available_minutes`, `minutes_requested` (all incomplete tasks), `minutes_used` (scheduled tasks), `minutes_remaining`, and a `get_time_summary()` message such as "85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have."
 - **Each `ScheduledTask` shows `minutes_left`**, a running balance through the day, so the owner can see how each task uses up their time.
 - **Skipped tasks explain the numbers.** Each skipped entry is now `(pet, task, reason)`, with reasons like "needs 20 min, only 5 min left", and `filter_tasks()` returns both the kept and the skipped tasks.
+- **Conflicts got their own list.** Conflict warnings were first mixed into `reasoning` with the general notes. I gave `DailyPlan` a separate `conflicts` list so the schedule can show them in their own "Warnings" section.
 
 I decided not to add recurring task logic yet. A weekly task would need a "last completed" date to know whether it's due, so I'm leaving that as a stretch feature.
 
