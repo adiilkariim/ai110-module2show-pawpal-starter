@@ -35,9 +35,15 @@ Yes. After writing the class skeletons, I asked AI to review `pawpal_system.py` 
 - **Removed `day_start` from the `Scheduler`.** Tasks already have a `due_time`, but the scheduler also had a day start time, which suggested placing tasks back-to-back from the morning. Those are two different ways to schedule, and they conflict. I chose to schedule each task at its own due time and use `check_conflicts()` to flag overlaps, because pet care usually happens at set times (meals, meds).
 - **Added a `PRIORITY_ORDER` lookup.** Priority is stored as a word, and sorting words alphabetically puts "low" before "medium", which is wrong. Mapping each priority to a number (high = 0, medium = 1, low = 2) makes sorting correct, and it lets `Task` reject typos like "hgih" when it is created.
 - **Added time helpers (`time_to_minutes`, `minutes_to_time`).** Times are stored as "HH:MM" text, and comparing text breaks for times like "9:00" vs "10:00". Converting to minutes makes sorting, end times, and overlap checks reliable.
-- **Skipped tasks now keep their pet.** `skipped_tasks` stores `(pet, task)` pairs instead of just tasks, so the plan can say which pet's task was skipped.
+- **Skipped tasks now keep their pet.** `skipped_tasks` stores the pet along with each task instead of just the task, so the plan can say which pet's task was skipped.
 - **Tasks are compared by identity (`eq=False`).** Dataclasses normally treat two tasks with the same values as equal, so removing one of two identical "Feeding 08:00" tasks could remove the wrong one.
 - **Gave preferences one clear use.** `preferences` was never used, so it is now a tie-breaker when sorting, e.g. `{"preferred_categories": ["walk"]}`.
+
+While implementing the scheduler, I noticed that the owner's `available_minutes` was only used behind the scenes. The app compared it to each task's `duration_minutes`, but never showed the owner how their time was being spent, so they couldn't plan around it. I added a visible time budget:
+
+- **`DailyPlan` now tracks time:** `available_minutes`, `minutes_requested` (all incomplete tasks), `minutes_used` (scheduled tasks), `minutes_remaining`, and a `get_time_summary()` message such as "85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have."
+- **Each `ScheduledTask` shows `minutes_left`**, a running balance through the day, so the owner can see how each task uses up their time.
+- **Skipped tasks explain the numbers.** Each skipped entry is now `(pet, task, reason)`, with reasons like "needs 20 min, only 5 min left", and `filter_tasks()` returns both the kept and the skipped tasks.
 
 I decided not to add recurring task logic yet. A weekly task would need a "last completed" date to know whether it's due, so I'm leaving that as a stretch feature.
 

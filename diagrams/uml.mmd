@@ -37,7 +37,7 @@ classDiagram
         +Owner owner
         +get_all_tasks() list~tuple~
         +sort_tasks(tasks: list~tuple~) list~tuple~
-        +filter_tasks(tasks: list~tuple~) list~tuple~
+        +filter_tasks(tasks: list~tuple~) tuple
         +check_conflicts(tasks: list~tuple~) list~str~
         +generate_plan() DailyPlan
     }
@@ -48,15 +48,21 @@ classDiagram
         +str start_time
         +str end_time
         +str reason
+        +int minutes_left
     }
 
     class DailyPlan {
         +str owner_name
+        +int available_minutes
+        +int minutes_requested
+        +int minutes_used
+        +int minutes_remaining
         +list~ScheduledTask~ scheduled_tasks
         +list~tuple~ skipped_tasks
         +list~str~ reasoning
         +display_plan() str
         +explain_reasoning() str
+        +get_time_summary() str
     }
 
     note "Module helpers: PRIORITY_ORDER, time_to_minutes(), minutes_to_time()"
