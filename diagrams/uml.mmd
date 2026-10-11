@@ -7,6 +7,7 @@ classDiagram
         +add_pet(pet: Pet) None
         +remove_pet(pet: Pet) None
         +update_preferences(preferences: dict) None
+        +get_all_tasks() list~tuple~
     }
 
     class Pet {
@@ -16,29 +17,34 @@ classDiagram
         +add_task(task: Task) None
         +remove_task(task: Task) None
         +edit_task(task: Task, changes: dict) None
+        +get_tasks() list~Task~
         +get_task_count() int
     }
 
     class Task {
-        +str title
+        +str description
+        +str due_time
         +int duration_minutes
         +str priority
         +str category
+        +str frequency
         +bool is_complete
         +mark_complete() None
         +get_duration() int
     }
 
     class Scheduler {
-        +int available_minutes
-        +dict preferences
+        +Owner owner
         +str day_start
-        +sort_tasks(tasks: list~Task~) list~Task~
-        +filter_tasks(tasks: list~Task~) list~Task~
-        +generate_plan(pet: Pet) DailyPlan
+        +get_all_tasks() list~tuple~
+        +sort_tasks(tasks: list~tuple~) list~tuple~
+        +filter_tasks(tasks: list~tuple~) list~tuple~
+        +check_conflicts(tasks: list~tuple~) list~str~
+        +generate_plan() DailyPlan
     }
 
     class ScheduledTask {
+        +str pet_name
         +Task task
         +str start_time
         +str end_time
@@ -46,7 +52,7 @@ classDiagram
     }
 
     class DailyPlan {
-        +str pet_name
+        +str owner_name
         +list~ScheduledTask~ scheduled_tasks
         +list~Task~ skipped_tasks
         +list~str~ reasoning
@@ -56,10 +62,8 @@ classDiagram
 
     Owner "1" --> "0..*" Pet : owns
     Pet "1" --> "0..*" Task : has
-    Owner ..> Scheduler : provides time and preferences
-    Scheduler ..> Pet : plans for
+    Scheduler --> Owner : plans for
     Scheduler ..> Task : organizes
     Scheduler ..> DailyPlan : generates
-    DailyPlan --> Pet : for
     DailyPlan "1" --> "0..*" ScheduledTask : includes
     ScheduledTask --> Task : wraps
