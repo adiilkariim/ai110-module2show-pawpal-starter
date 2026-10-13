@@ -14,7 +14,7 @@ from pawpal_system import (
     time_to_minutes,
 )
 
-CATEGORIES = ["walk", "feeding", "meds", "grooming", "play", "cleaning", "general"]
+CATEGORIES = ["walk", "feeding", "meds", "grooming", "play", "cleaning"]
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -30,10 +30,10 @@ owner: Owner = st.session_state.owner
 
 
 def show_field_error(field_key: str) -> None:
-    """Show the error for one input field, directly above it."""
+    """Show the error for one input field as small red text above it (no box, so fields stay aligned)."""
     message = st.session_state.errors.get(field_key)
     if message:
-        st.error(message)
+        st.markdown(f":red[⚠ {message}]")
 
 
 def show_flash(section: str) -> None:
@@ -82,7 +82,8 @@ def add_task() -> None:
         errors.pop(key, None)
 
     pet = owner.pets[st.session_state.task_pet]
-    description = st.session_state.task_description.strip()
+    # Drop stray wrapping quotes and trailing periods, e.g. "'Morning walk'." -> "Morning walk"
+    description = st.session_state.task_description.strip().rstrip(".").strip().strip("'\"").strip()
     start = st.session_state.task_time.strftime("%H:%M")
     duration = int(st.session_state.task_duration)
     if not description:
@@ -133,35 +134,31 @@ st.title("🐾 PawPal+")
 st.caption("Plan your pets' care for the day: add your pets and their tasks, then build a schedule "
            "that fits your available time, puts important tasks first, and flags overlaps.")
 
-st.header("1. You")
+st.header("👤 You")
 owner.name = st.text_input("Your name", placeholder="e.g. Alex", key="owner_name").strip()
 owner.available_minutes = int(
-    st.number_input("Minutes available for pet care per day (max 1440, the minutes in a day)",
-                    min_value=1, max_value=1440, value=60, step=5, key="available_minutes")
+    st.number_input("Minutes available for pet care per day (1–1440 min)",
+                    min_value=1, max_value=1440, value=60, step=1, key="available_minutes")
 )
-# Common types plus any custom types already used on tasks
-custom_types = {task.category for _, task in owner.get_all_tasks()} - set(CATEGORIES)
 owner.update_preferences({
     "preferred_categories": st.multiselect(
         "Preferred task types (optional)",
-        CATEGORIES + sorted(custom_types),
+        CATEGORIES,
         key="preferred_categories",
-        accept_new_options=True,
-        placeholder="Choose task types or type your own",
+        placeholder="Choose task types",
     )
 })
 st.caption(
     "**What it's for:** when two tasks have the same priority and there's only time for one, "
     "the type you prefer is scheduled first. For example, if you prefer *walk*, an evening walk "
     "gets the time before grooming.  \n"
-    "**How to use it:** click the box and pick one or more types from the list, or type your own "
-    "(e.g. *Disneyland trip*) and press Enter. Custom types you've used on tasks also appear in the list."
+    "**How to use it:** click the box and pick one or more types from the list."
 )
 
-st.header("2. Pets")
+st.header("🐶 Pets")
+show_field_error("pet_name")
 col_name, col_species = st.columns([2, 1])
 with col_name:
-    show_field_error("pet_name")
     st.text_input("Pet name", placeholder="e.g. Biscuit", key="pet_name")
 with col_species:
     st.selectbox("Species", ["dog", "cat", "other"], key="pet_species")
@@ -169,52 +166,58 @@ st.button("Add pet", on_click=add_pet)
 show_flash("pets")
 
 if owner.pets:
-    st.table([{"Pet": p.name, "Species": p.species, "Tasks": p.get_task_count()} for p in owner.pets])
+    st.table([{"Pet": p.name, "Species": p.species, "Number of tasks": p.get_task_count()} for p in owner.pets])
 else:
     st.info("Add a pet to start adding care tasks.")
 
+st.header("📝 Care tasks")
+no_pets = not owner.pets  # tasks belong to a pet, so the form stays disabled until one exists
+if no_pets:
+    st.info("Add a pet above first, then add its tasks here.")
+st.selectbox("Pet", range(len(owner.pets)), key="task_pet", disabled=no_pets,
+             format_func=lambda i: f"{owner.pets[i].name} ({owner.pets[i].species})")
+
+show_field_error("task_description")
+st.text_input("Description", placeholder="e.g. Morning walk", key="task_description", disabled=no_pets)
+
+# Values from the previous run let the warnings sit above the fields they describe
+current_time = st.session_state.get("task_time", time(8, 0)).strftime("%H:%M")
+current_duration = int(st.session_state.get("task_duration", 15))
+current_pet = None if no_pets else owner.pets[st.session_state.get("task_pet") or 0]
+
+# Time and duration warnings sit right above that row, so the two inputs stay lined up
+if current_pet is not None:
+    for other_pet, other_task in find_task_overlaps(
+        current_pet, st.session_state.get("task_description", ""), date.today(),
+        current_time, current_duration,
+    ):
+        st.markdown(f":orange[⚠ Time: {current_time} overlaps {describe_slot(other_pet, other_task)}. "
+                    "You can still add it, or pick another time.]")
+show_field_error("task_duration")
+if time_to_minutes(current_time) + current_duration > LAST_MINUTE_OF_DAY:
+    st.markdown(":orange[⚠ Duration: this would run past midnight. Shorten it or start earlier.]")
+
+col_time, col_duration = st.columns(2)
+with col_time:
+    st.time_input("Time", value=time(8, 0), step=300, key="task_time", disabled=no_pets)
+with col_duration:
+    st.number_input("Duration (minutes)", min_value=1, max_value=LAST_MINUTE_OF_DAY,
+                    value=15, step=5, key="task_duration", disabled=no_pets)
+
+col_priority, col_category, col_frequency = st.columns(3)
+with col_priority:
+    st.selectbox("Priority", list(PRIORITY_ORDER), index=1, key="task_priority", disabled=no_pets)
+with col_category:
+    st.selectbox("Type", CATEGORIES, key="task_category", disabled=no_pets)
+with col_frequency:
+    st.selectbox("Repeats", FREQUENCIES, index=FREQUENCIES.index("daily"), key="task_frequency",
+                 disabled=no_pets)
+
+show_field_error("task_other")
+st.button("Add task", on_click=add_task, disabled=no_pets)
+show_flash("tasks")
+
 if owner.pets:
-    st.header("3. Care tasks")
-    st.selectbox("Pet", range(len(owner.pets)), key="task_pet",
-                 format_func=lambda i: f"{owner.pets[i].name} ({owner.pets[i].species})")
-
-    show_field_error("task_description")
-    st.text_input("Description", placeholder="e.g. Morning walk", key="task_description")
-
-    # Values from the previous run let the warnings sit above the fields they describe
-    current_time = st.session_state.get("task_time", time(8, 0)).strftime("%H:%M")
-    current_duration = int(st.session_state.get("task_duration", 15))
-    current_pet = owner.pets[st.session_state.get("task_pet", 0)]
-
-    col_time, col_duration = st.columns(2)
-    with col_time:
-        for other_pet, other_task in find_task_overlaps(
-            current_pet, st.session_state.get("task_description", ""), date.today(),
-            current_time, current_duration,
-        ):
-            st.warning(f"{current_time} overlaps {describe_slot(other_pet, other_task)}. "
-                       "You can still add it, or pick another time.")
-        st.time_input("Time", value=time(8, 0), step=300, key="task_time")
-    with col_duration:
-        show_field_error("task_duration")
-        if time_to_minutes(current_time) + current_duration > LAST_MINUTE_OF_DAY:
-            st.warning("This would run past midnight. Shorten it or start earlier.")
-        st.number_input("Duration (minutes)", min_value=1, max_value=LAST_MINUTE_OF_DAY,
-                        value=15, step=5, key="task_duration")
-
-    col_priority, col_category, col_frequency = st.columns(3)
-    with col_priority:
-        st.selectbox("Priority", list(PRIORITY_ORDER), index=1, key="task_priority")
-    with col_category:
-        st.selectbox("Type", CATEGORIES, key="task_category", accept_new_options=True,
-                     help="Pick a common type or type your own and press Enter.")
-    with col_frequency:
-        st.selectbox("Repeats", FREQUENCIES, index=FREQUENCIES.index("daily"), key="task_frequency")
-
-    show_field_error("task_other")
-    st.button("Add task", on_click=add_task)
-    show_flash("tasks")
-
     st.subheader("Task list")
     show_flash("task_list")
     any_tasks = False
@@ -237,7 +240,7 @@ if owner.pets:
     if not any_tasks:
         st.info("No tasks yet. Add one above.")
 
-st.header("4. Schedule")
+st.header("📅 Schedule")
 if st.button("Generate today's schedule", type="primary"):
     st.session_state.show_plan = True
 

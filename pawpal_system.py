@@ -417,7 +417,10 @@ class Scheduler:
             )
 
         if not all_tasks:
-            plan.reasoning.append("No tasks to schedule today. Add a pet and some tasks first.")
+            if self.owner.pets:
+                plan.reasoning.append("No tasks to schedule today. Add some tasks first.")
+            else:
+                plan.reasoning.append("No tasks to schedule today. Add a pet and some tasks first.")
         elif not days_tasks:
             plan.reasoning.append(f"No tasks are due on {self.plan_date:%Y-%m-%d}.")
         elif not pending:
