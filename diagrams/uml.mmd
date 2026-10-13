@@ -8,6 +8,8 @@ classDiagram
         +remove_pet(pet: Pet) None
         +update_preferences(preferences: dict) None
         +get_all_tasks() list~tuple~
+        +save_to_json(path: str) None
+        +load_from_json(path: str) Owner
     }
 
     class Pet {

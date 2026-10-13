@@ -282,6 +282,24 @@ Schedule for Sample Owner on Monday, 2026-10-12
 - Section headings with emoji: 👤 You, 🐶 Pets, 📝 Care tasks, 📅 Schedule.
 - `st.expander` for the "Why this plan?" explanation.
 
+## 💾 Data Persistence
+
+The Streamlit app remembers your details, pets, and tasks between runs by saving them to a `data.json` file in the project folder.
+
+**How it works:**
+
+1. **Saving:** every change in the app (adding a pet or task, clicking Done or Remove, or editing your name, minutes, or preferred task types) reruns the page, and at the end of each run `app.py` calls `Owner.save_to_json("data.json")`. It writes your name, available minutes, preferences, and every pet with all of its tasks.
+2. **Loading:** when the app starts, `app.py` checks whether `data.json` exists. If it does, `Owner.load_from_json("data.json")` rebuilds the owner, pets, and tasks, and fills in the 👤 You inputs with the saved values. If the file doesn't exist or can't be read, the app starts empty.
+3. **Format:** JSON has no date type, so each task's `due_date` is saved as text (`"2026-10-13"`) and turned back into a date when loading. Each loaded task is rebuilt with the normal `Task` constructor, so its values are checked again.
+
+To start over with no data, close the app and delete `data.json`.
+
+**Files modified:**
+
+- `pawpal_system.py`: added `Owner.save_to_json()` and `Owner.load_from_json()`.
+- `app.py`: loads `data.json` on startup and saves after every change.
+- `diagrams/uml.mmd` and `diagrams/uml_final.mmd`: added the two new methods to `Owner`.
+
 ## 📸 Demo Walkthrough
 
 ### Main UI features

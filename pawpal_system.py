@@ -1,5 +1,6 @@
 """PawPal+ logic layer: the backend classes for pet care scheduling."""
 
+import json
 from dataclasses import dataclass, field, fields, replace
 from datetime import date, datetime, timedelta
 
@@ -188,6 +189,43 @@ class Owner:
     def get_all_tasks(self) -> list[tuple[Pet, Task]]:
         """Return every task across all pets as (pet, task) pairs."""
         return [(pet, task) for pet in self.pets for task in pet.tasks]
+
+    def save_to_json(self, path: str = "data.json") -> None:
+        """Save the owner, their pets, and all tasks to a JSON file."""
+        data = {
+            "name": self.name,
+            "available_minutes": self.available_minutes,
+            "preferences": self.preferences,
+            "pets": [
+                {
+                    "name": pet.name,
+                    "species": pet.species,
+                    # JSON has no date type, so due_date is stored as "YYYY-MM-DD"
+                    "tasks": [
+                        {f.name: getattr(task, f.name) for f in fields(Task)}
+                        | {"due_date": task.due_date.isoformat()}
+                        for task in pet.tasks
+                    ],
+                }
+                for pet in self.pets
+            ],
+        }
+        with open(path, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=2)
+
+    @classmethod
+    def load_from_json(cls, path: str = "data.json") -> "Owner":
+        """Rebuild an owner, their pets, and all tasks from a JSON file made by save_to_json()."""
+        with open(path, encoding="utf-8") as file:
+            data = json.load(file)
+        owner = cls(data["name"], data["available_minutes"], data.get("preferences"))
+        for pet_data in data["pets"]:
+            pet = Pet(pet_data["name"], pet_data["species"])
+            for task_data in pet_data["tasks"]:
+                # Building each Task runs its normal validation on the loaded values
+                pet.add_task(Task(**task_data | {"due_date": date.fromisoformat(task_data["due_date"])}))
+            owner.add_pet(pet)
+        return owner
 
 
 @dataclass

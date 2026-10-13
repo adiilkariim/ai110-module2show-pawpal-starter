@@ -1,3 +1,4 @@
+import os
 from datetime import date, time
 
 import streamlit as st
@@ -15,12 +16,26 @@ from pawpal_system import (
 )
 
 CATEGORIES = ["walk", "feeding", "meds", "grooming", "play", "cleaning"]
+DATA_FILE = "data.json"  # pets and tasks are saved here so they survive restarts
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
-# The Owner object holds all pets and tasks, so it lives in session state across reruns
+# The Owner object holds all pets and tasks, so it lives in session state across reruns.
+# On the first run, load the saved data if there is any.
 if "owner" not in st.session_state:
-    st.session_state.owner = Owner("", 60)
+    loaded = None
+    if os.path.exists(DATA_FILE):
+        try:
+            loaded = Owner.load_from_json(DATA_FILE)
+        except (ValueError, KeyError, TypeError):
+            loaded = None  # unreadable file: start fresh instead of crashing
+    st.session_state.owner = loaded or Owner("", 60)
+    # Fill the "You" inputs with the saved values
+    st.session_state.owner_name = st.session_state.owner.name
+    st.session_state.available_minutes = st.session_state.owner.available_minutes
+    st.session_state.preferred_categories = [
+        c for c in st.session_state.owner.preferences.get("preferred_categories", []) if c in CATEGORIES
+    ]
 if "errors" not in st.session_state:
     st.session_state.errors = {}  # field key -> message shown above that field
 if "flash" not in st.session_state:
@@ -138,7 +153,7 @@ st.header("👤 You")
 owner.name = st.text_input("Your name", placeholder="e.g. Alex", key="owner_name").strip()
 owner.available_minutes = int(
     st.number_input("Minutes available for pet care per day (1–1440 min)",
-                    min_value=1, max_value=1440, value=60, step=1, key="available_minutes")
+                    min_value=1, max_value=1440, step=1, key="available_minutes")
 )
 owner.update_preferences({
     "preferred_categories": st.multiselect(
@@ -202,7 +217,7 @@ with col_time:
     st.time_input("Time", value=time(8, 0), step=300, key="task_time", disabled=no_pets)
 with col_duration:
     st.number_input("Duration (minutes)", min_value=1, max_value=LAST_MINUTE_OF_DAY,
-                    value=15, step=5, key="task_duration", disabled=no_pets)
+                    value=15, step=1, key="task_duration", disabled=no_pets)
 
 col_priority, col_category, col_frequency = st.columns(3)
 with col_priority:
@@ -293,3 +308,7 @@ if st.session_state.get("show_plan"):
 
     with st.expander("Why this plan?"):
         st.markdown(plan.explain_reasoning())
+
+# Every change (adding a pet or task, Done, Remove, editing your details) reruns the page,
+# so saving here keeps data.json up to date
+owner.save_to_json(DATA_FILE)

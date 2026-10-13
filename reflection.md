@@ -104,7 +104,9 @@ I rejected or changed several AI suggestions to keep the design clean and focuse
 - **Big warning boxes.** I asked for warnings to sit next to the specific field they're about instead of one general bar, and later for them to be small colored text so they don't push the inputs out of line.
 - **The time budget.** This one was my idea: I noticed the AI's scheduler used `available_minutes` behind the scenes but never showed the owner how much time was left, so I asked for a visible time summary and a "minutes left" column.
 
-To verify, I **ran everything myself**: `python main.py` to check the demo output, `python -m pytest` to confirm all 21 tests pass, and the Streamlit app to try each feature by hand. Using the app is how I found several problems, like the minutes field only stepping down to 5, the date picker confusion, and task names keeping stray quotes.
+I didn't just trust that the code worked: I checked the code and the logic behind it myself, making sure I understood why each method does what it does. I also used **more than one AI model for verification and comparison**. Sometimes I gave one model the code another model had written and asked it to look for bugs and contradictions, for example between what the code actually did and what the documentation or the UML said. When the models disagreed, that told me where to look more closely.
+
+To verify, I also **ran everything myself**: `python main.py` to check the demo output, `python -m pytest` to confirm all 21 tests pass, and the Streamlit app to try each feature by hand. Using the app is how I found several problems, like the minutes field only stepping down to 5, the date picker confusion, and task names keeping stray quotes.
 
 ---
 

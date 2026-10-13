@@ -1,0 +1,38 @@
+{
+  "name": "alex",
+  "available_minutes": 60,
+  "preferences": {
+    "preferred_categories": [
+      "walk",
+      "meds"
+    ]
+  },
+  "pets": [
+    {
+      "name": "poe",
+      "species": "dog",
+      "tasks": [
+        {
+          "description": "walking",
+          "due_time": "08:00",
+          "duration_minutes": 15,
+          "priority": "medium",
+          "category": "walk",
+          "frequency": "daily",
+          "is_complete": false,
+          "due_date": "2026-10-13"
+        },
+        {
+          "description": "feeding",
+          "due_time": "08:00",
+          "duration_minutes": 5,
+          "priority": "high",
+          "category": "feeding",
+          "frequency": "daily",
+          "is_complete": false,
+          "due_date": "2026-10-13"
+        }
+      ]
+    }
+  ]
+}
