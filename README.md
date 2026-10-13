@@ -61,28 +61,54 @@ Press `Ctrl + C` in the terminal to stop the Streamlit app.
 
 ## 🖥️ Sample Output
 
-Output of `python main.py`, which runs the scheduler on sample demo data (one owner with 90 minutes, two pets, six tasks):
+Output of `python main.py`, which runs the scheduler on sample demo data (one owner with 90 minutes, two pets, seven tasks):
 
 ```
 PawPal+ demo for Sample Owner: 2 pets, 90 min available today
 
---- Step 1: All tasks across pets ---
-  Dog 1  08:00  Morning walk       30 min  high    (to do)
-  Dog 1  09:00  Medication          5 min  high    (to do)
+--- Step 1: All tasks across pets (in the order they were added) ---
   Dog 1  18:00  Fetch play         40 min  medium  (to do)
-  Cat 1  08:15  Breakfast          10 min  high    (to do)
+  Dog 1  09:00  Medication          5 min  high    (to do)
+  Dog 1  08:00  Morning walk       30 min  high    (to do)
   Cat 1  10:00  Brush fur          20 min  low     (to do)
+  Cat 1  09:00  Vitamins            5 min  medium  (to do)
+  Cat 1  08:15  Breakfast          10 min  high    (to do)
   Cat 1  07:30  Clean litter box    5 min  medium  (done)
 
---- Step 2: Sorted by priority, then preferred category, then time (before filtering) ---
+--- Step 2: Sorted by time with sort_by_time() ---
+  Cat 1  07:30  Clean litter box    5 min  medium  (done)
+  Dog 1  08:00  Morning walk       30 min  high    (to do)
+  Cat 1  08:15  Breakfast          10 min  high    (to do)
+  Dog 1  09:00  Medication          5 min  high    (to do)
+  Cat 1  09:00  Vitamins            5 min  medium  (to do)
+  Cat 1  10:00  Brush fur          20 min  low     (to do)
+  Dog 1  18:00  Fetch play         40 min  medium  (to do)
+
+--- Step 3: Filtered with filter_by() ---
+  Only Dog 1's tasks:
+  Dog 1  18:00  Fetch play         40 min  medium  (to do)
+  Dog 1  09:00  Medication          5 min  high    (to do)
+  Dog 1  08:00  Morning walk       30 min  high    (to do)
+  Only tasks still to do:
+  Dog 1  18:00  Fetch play         40 min  medium  (to do)
+  Dog 1  09:00  Medication          5 min  high    (to do)
+  Dog 1  08:00  Morning walk       30 min  high    (to do)
+  Cat 1  10:00  Brush fur          20 min  low     (to do)
+  Cat 1  09:00  Vitamins            5 min  medium  (to do)
+  Cat 1  08:15  Breakfast          10 min  high    (to do)
+  Only completed tasks:
+  Cat 1  07:30  Clean litter box    5 min  medium  (done)
+
+--- Step 4: Sorted by priority, then preferred category, then time (before filtering) ---
   1. Morning walk (Dog 1) [high, walk]
   2. Breakfast (Cat 1) [high, feeding]
   3. Medication (Dog 1) [high, meds]
   4. Clean litter box (Cat 1) [medium, cleaning]
-  5. Fetch play (Dog 1) [medium, play]
-  6. Brush fur (Cat 1) [low, grooming]
+  5. Vitamins (Cat 1) [medium, meds]
+  6. Fetch play (Dog 1) [medium, play]
+  7. Brush fur (Cat 1) [low, grooming]
 
---- Step 3: Build the plan ---
+--- Step 5: Build the plan ---
 Schedule for Sample Owner on Monday, 2026-10-12
 ===============================================
   Time         Task          Pet    Priority  Duration  Time left
@@ -90,30 +116,33 @@ Schedule for Sample Owner on Monday, 2026-10-12
   08:00-08:30  Morning walk  Dog 1  high        30 min     60 min
   08:15-08:25  Breakfast     Cat 1  high        10 min     50 min
   09:00-09:05  Medication    Dog 1  high         5 min     45 min
-  18:00-18:40  Fetch play    Dog 1  medium      40 min      5 min
+  09:00-09:05  Vitamins      Cat 1  medium       5 min     40 min
+  18:00-18:40  Fetch play    Dog 1  medium      40 min      0 min
 
 ⏭️ Skipped:
-  - Brush fur (Cat 1): low priority, needs 20 min, only 5 min left
+  - Brush fur (Cat 1): low priority, needs 20 min, only 0 min left
 
 ⚠️ Warnings:
   ⚠️ Conflict: Morning walk (Dog 1) 08:00-08:30 overlaps Breakfast (Cat 1) 08:15-08:25
+  ⚠️ Conflict: Medication (Dog 1) 09:00-09:05 overlaps Vitamins (Cat 1) 09:00-09:05
 
-⏱️ Time: 85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
+⏱️ Time: 90 of 90 min used, 0 min remaining. Your tasks need 110 min in total, 20 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
 
---- Step 4: Explain the plan ---
+--- Step 6: Explain the plan ---
 Why this plan:
   - Tasks were chosen by priority (high first), then preferred category, then time, until the available time ran out.
   - 1 task(s) did not fit in the available time and were skipped.
-  - 1 time conflict(s) found. Both tasks stay in the plan, so you can decide which one to move.
+  - 2 time conflict(s) found. Both tasks stay in the plan, so you can decide which one to move.
   - Morning walk (Dog 1) at 08:00: high priority, preferred category (walk), fits in your time
   - Breakfast (Cat 1) at 08:15: high priority, fits in your time
   - Medication (Dog 1) at 09:00: high priority, fits in your time
+  - Vitamins (Cat 1) at 09:00: medium priority, fits in your time
   - Fetch play (Dog 1) at 18:00: medium priority, fits in your time
 
---- Step 5: Recurring tasks ---
+--- Step 7: Recurring tasks ---
   Completed 'Medication' (daily) due 2026-10-12.
   Next occurrence added for Dog 1: due 2026-10-13 at 09:00, complete=False
-  Rebuilt plan for today: Morning walk, Breakfast, Fetch play (tomorrow's copy is not included)
+  Rebuilt plan for today: Morning walk, Breakfast, Vitamins, Fetch play (tomorrow's copy is not included)
 ```
 
 ## 🧪 Testing PawPal+
@@ -177,16 +206,17 @@ CLI output examples from `python main.py`:
 Priority-based order. The walk comes before the other high-priority tasks because *walk* is the owner's preferred type:
 
 ```
---- Step 2: Sorted by priority, then preferred category, then time (before filtering) ---
+--- Step 4: Sorted by priority, then preferred category, then time (before filtering) ---
   1. Morning walk (Dog 1) [high, walk]
   2. Breakfast (Cat 1) [high, feeding]
   3. Medication (Dog 1) [high, meds]
   4. Clean litter box (Cat 1) [medium, cleaning]
-  5. Fetch play (Dog 1) [medium, play]
-  6. Brush fur (Cat 1) [low, grooming]
+  5. Vitamins (Cat 1) [medium, meds]
+  6. Fetch play (Dog 1) [medium, play]
+  7. Brush fur (Cat 1) [low, grooming]
 ```
 
-The resulting plan. High-priority tasks get the 90 minutes first, the low-priority task that doesn't fit is skipped with a reason, and the overlap between two different pets' tasks is flagged:
+The resulting plan. High-priority tasks get the 90 minutes first, the low-priority task that doesn't fit is skipped with a reason, and two conflicts between different pets' tasks are flagged: one overlap and one at the exact same time:
 
 ```
 Schedule for Sample Owner on Monday, 2026-10-12
@@ -196,15 +226,17 @@ Schedule for Sample Owner on Monday, 2026-10-12
   08:00-08:30  Morning walk  Dog 1  high        30 min     60 min
   08:15-08:25  Breakfast     Cat 1  high        10 min     50 min
   09:00-09:05  Medication    Dog 1  high         5 min     45 min
-  18:00-18:40  Fetch play    Dog 1  medium      40 min      5 min
+  09:00-09:05  Vitamins      Cat 1  medium       5 min     40 min
+  18:00-18:40  Fetch play    Dog 1  medium      40 min      0 min
 
 ⏭️ Skipped:
-  - Brush fur (Cat 1): low priority, needs 20 min, only 5 min left
+  - Brush fur (Cat 1): low priority, needs 20 min, only 0 min left
 
 ⚠️ Warnings:
   ⚠️ Conflict: Morning walk (Dog 1) 08:00-08:30 overlaps Breakfast (Cat 1) 08:15-08:25
+  ⚠️ Conflict: Medication (Dog 1) 09:00-09:05 overlaps Vitamins (Cat 1) 09:00-09:05
 
-⏱️ Time: 85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
+⏱️ Time: 90 of 90 min used, 0 min remaining. Your tasks need 110 min in total, 20 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
 ```
 
 ## 🎨 Output Formatting

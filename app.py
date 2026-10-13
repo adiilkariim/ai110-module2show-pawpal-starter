@@ -100,7 +100,7 @@ def add_task() -> None:
             priority=st.session_state.task_priority,
             category=(st.session_state.task_category or "").strip() or "general",
             frequency=st.session_state.task_frequency,
-            due_date=st.session_state.task_date,
+            due_date=date.today(),
         )
     except ValueError as error:
         errors["task_other"] = str(error)
@@ -182,17 +182,14 @@ if owner.pets:
     st.text_input("Description", placeholder="e.g. Morning walk", key="task_description")
 
     # Values from the previous run let the warnings sit above the fields they describe
-    current_date = st.session_state.get("task_date", date.today())
     current_time = st.session_state.get("task_time", time(8, 0)).strftime("%H:%M")
     current_duration = int(st.session_state.get("task_duration", 15))
     current_pet = owner.pets[st.session_state.get("task_pet", 0)]
 
-    col_date, col_time, col_duration = st.columns(3)
-    with col_date:
-        st.date_input("Date", value=date.today(), key="task_date")
+    col_time, col_duration = st.columns(2)
     with col_time:
         for other_pet, other_task in find_task_overlaps(
-            current_pet, st.session_state.get("task_description", ""), current_date,
+            current_pet, st.session_state.get("task_description", ""), date.today(),
             current_time, current_duration,
         ):
             st.warning(f"{current_time} overlaps {describe_slot(other_pet, other_task)}. "
@@ -241,12 +238,11 @@ if owner.pets:
         st.info("No tasks yet. Add one above.")
 
 st.header("4. Schedule")
-plan_date = st.date_input("Plan for", value=date.today(), key="plan_date")
-if st.button("Generate schedule", type="primary"):
+if st.button("Generate today's schedule", type="primary"):
     st.session_state.show_plan = True
 
 if st.session_state.get("show_plan"):
-    scheduler = Scheduler(owner, plan_date)
+    scheduler = Scheduler(owner)  # plans for today
     plan = scheduler.generate_plan()
 
     st.subheader(f"Schedule for {owner.name or 'your pets'} on {plan.plan_date:%A, %B %d}")

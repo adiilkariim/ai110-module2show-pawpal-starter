@@ -315,6 +315,17 @@ class Scheduler:
         """Order tasks chronologically: by due date, then due time."""
         return sorted(tasks, key=lambda pair: (pair[1].due_date, time_to_minutes(pair[1].due_time)))
 
+    def filter_by(
+        self, pet_name: str | None = None, is_complete: bool | None = None
+    ) -> list[tuple[Pet, Task]]:
+        """Return tasks across all pets, optionally only one pet's (by name) and/or only done or not-done ones."""
+        return [
+            (pet, task)
+            for pet, task in self.get_all_tasks()
+            if (pet_name is None or pet.name.lower() == pet_name.strip().lower())
+            and (is_complete is None or task.is_complete == is_complete)
+        ]
+
     def filter_tasks(
         self, tasks: list[tuple[Pet, Task]]
     ) -> tuple[list[tuple[Pet, Task]], list[tuple[Pet, Task, str]]]:
