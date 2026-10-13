@@ -33,6 +33,12 @@ def minutes_to_time(minutes: int) -> str:
     return f"{minutes // 60:02d}:{minutes % 60:02d}"
 
 
+def describe_slot(pet: "Pet", task: "Task") -> str:
+    """Describe a task with its pet and time range, e.g. "Walk (Dog 1) 08:00-08:30"."""
+    start = time_to_minutes(task.due_time)
+    return f"{task.description} ({pet.name}) {task.due_time}-{minutes_to_time(start + task.duration_minutes)}"
+
+
 @dataclass(eq=False)  # compare tasks by identity, so identical tasks stay distinct
 class Task:
     """A single pet care activity."""
@@ -238,14 +244,14 @@ class DailyPlan:
                 )
 
         if self.skipped_tasks:
-            lines += ["", "Skipped:"]
+            lines += ["", "⏭️ Skipped:"]
             lines += [f"  - {task.description} ({pet.name}): {reason}" for pet, task, reason in self.skipped_tasks]
 
         if self.conflicts:
-            lines += ["", "Warnings:"]
-            lines += [f"  ! {conflict}" for conflict in self.conflicts]
+            lines += ["", "⚠️ Warnings:"]
+            lines += [f"  ⚠️ {conflict}" for conflict in self.conflicts]
 
-        lines += ["", f"Time: {self.get_time_summary()}"]
+        lines += ["", f"⏱️ Time: {self.get_time_summary()}"]
         return "\n".join(lines)
 
     def explain_reasoning(self) -> str:
@@ -333,14 +339,16 @@ class Scheduler:
                 skipped.append((pet, task, reason))
         return kept, skipped
 
-    def check_conflicts(self, tasks: list[tuple[Pet, Task]]) -> list[str]:
-        """Return a warning for every pair of same-day tasks whose times overlap, across all pets."""
+    def find_overlaps(
+        self, tasks: list[tuple[Pet, Task]]
+    ) -> list[tuple[tuple[Pet, Task], tuple[Pet, Task]]]:
+        """Return every pair of same-day tasks whose times overlap, across all pets, earliest first."""
         timed = []
         for pet, task in self.sort_by_time(tasks):
             start = time_to_minutes(task.due_time)
             timed.append((start, start + task.duration_minutes, pet, task))
 
-        warnings = []
+        overlaps = []
         # Compare every pair, not just neighbours: one long task can overlap several later ones
         for i, (start_a, end_a, pet_a, task_a) in enumerate(timed):
             for start_b, end_b, pet_b, task_b in timed[i + 1:]:
@@ -348,13 +356,15 @@ class Scheduler:
                     continue
                 # Touching tasks (one ends exactly when the next starts) do not overlap
                 if start_a < end_b and start_b < end_a:
-                    warnings.append(
-                        f"Conflict: {task_a.description} ({pet_a.name}) "
-                        f"{minutes_to_time(start_a)}-{minutes_to_time(end_a)} overlaps "
-                        f"{task_b.description} ({pet_b.name}) "
-                        f"{minutes_to_time(start_b)}-{minutes_to_time(end_b)}"
-                    )
-        return warnings
+                    overlaps.append(((pet_a, task_a), (pet_b, task_b)))
+        return overlaps
+
+    def check_conflicts(self, tasks: list[tuple[Pet, Task]]) -> list[str]:
+        """Return a warning message for every pair of same-day tasks whose times overlap."""
+        return [
+            f"Conflict: {describe_slot(pet_a, task_a)} overlaps {describe_slot(pet_b, task_b)}"
+            for (pet_a, task_a), (pet_b, task_b) in self.find_overlaps(tasks)
+        ]
 
     def generate_plan(self) -> DailyPlan:
         """Build the plan for plan_date: gather, sort, fit to the time budget, check conflicts, explain."""

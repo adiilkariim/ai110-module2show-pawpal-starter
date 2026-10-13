@@ -43,6 +43,7 @@ classDiagram
         +sort_tasks(tasks: list~tuple~) list~tuple~
         +sort_by_time(tasks: list~tuple~) list~tuple~
         +filter_tasks(tasks: list~tuple~) tuple
+        +find_overlaps(tasks: list~tuple~) list~tuple~
         +check_conflicts(tasks: list~tuple~) list~str~
         +generate_plan() DailyPlan
     }
@@ -72,7 +73,7 @@ classDiagram
         +get_time_summary() str
     }
 
-    note "Module helpers: PRIORITY_ORDER, RECURRENCE_DAYS, time_to_minutes(), minutes_to_time()"
+    note "Module helpers: PRIORITY_ORDER, RECURRENCE_DAYS, time_to_minutes(), minutes_to_time(), describe_slot()"
 
     Owner "1" --> "0..*" Pet : owns
     Pet "1" --> "0..*" Task : has

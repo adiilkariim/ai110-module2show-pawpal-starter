@@ -32,6 +32,23 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+### Running PawPal+
+
+With the virtual environment active, run these from the project folder:
+
+```bash
+# Terminal demo: builds and prints a schedule from sample data
+python main.py
+
+# Streamlit app: opens in your browser at http://localhost:8501
+python -m streamlit run app.py
+
+# Tests
+python -m pytest
+```
+
+Press `Ctrl + C` in the terminal to stop the Streamlit app.
+
 ### Suggested workflow
 
 1. Read the scenario carefully and identify requirements and edge cases.
@@ -66,8 +83,8 @@ PawPal+ demo for Sample Owner: 2 pets, 90 min available today
   6. Brush fur (Cat 1) [low, grooming]
 
 --- Step 3: Build the plan ---
-Today's Schedule for Sample Owner
-=================================
+Schedule for Sample Owner on Monday, 2026-10-12
+===============================================
   Time         Task          Pet    Priority  Duration  Time left
   ---------------------------------------------------------------
   08:00-08:30  Morning walk  Dog 1  high        30 min     60 min
@@ -75,13 +92,13 @@ Today's Schedule for Sample Owner
   09:00-09:05  Medication    Dog 1  high         5 min     45 min
   18:00-18:40  Fetch play    Dog 1  medium      40 min      5 min
 
-Skipped:
+⏭️ Skipped:
   - Brush fur (Cat 1): low priority, needs 20 min, only 5 min left
 
-Warnings:
-  ! Conflict: Morning walk (Dog 1) 08:00-08:30 overlaps Breakfast (Cat 1) 08:15-08:25
+⚠️ Warnings:
+  ⚠️ Conflict: Morning walk (Dog 1) 08:00-08:30 overlaps Breakfast (Cat 1) 08:15-08:25
 
-Time: 85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
+⏱️ Time: 85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
 
 --- Step 4: Explain the plan ---
 Why this plan:
@@ -92,6 +109,11 @@ Why this plan:
   - Breakfast (Cat 1) at 08:15: high priority, fits in your time
   - Medication (Dog 1) at 09:00: high priority, fits in your time
   - Fetch play (Dog 1) at 18:00: medium priority, fits in your time
+
+--- Step 5: Recurring tasks ---
+  Completed 'Medication' (daily) due 2026-10-12.
+  Next occurrence added for Dog 1: due 2026-10-13 at 09:00, complete=False
+  Rebuilt plan for today: Morning walk, Breakfast, Fetch play (tomorrow's copy is not included)
 ```
 
 ## 🧪 Testing PawPal+
@@ -141,6 +163,65 @@ tests\test_pawpal.py .....................                                      
 | Filtering | | e.g., skip tasks if time runs out |
 | Conflict handling | | e.g., overlapping time slots |
 | Recurring tasks | | e.g., daily vs. weekly |
+
+## 🧠 Advanced Scheduling Logic
+
+PawPal+ goes beyond sorting by time. It builds the day's plan with priority-based scheduling inside a time budget:
+
+1. **Priority-based sorting:** `Scheduler.sort_tasks()` orders tasks by priority first (high, then medium, then low, using the `PRIORITY_ORDER` lookup), then by the owner's preferred task types as a tie-breaker, then by time.
+2. **Time-budget fitting:** `Scheduler.filter_tasks()` goes through the sorted tasks and keeps each one that fits in the owner's remaining available minutes. A task that doesn't fit is skipped with a reason, and the scheduler keeps checking the rest, so a shorter task later in the list can still fit.
+3. **Overlap detection:** `Scheduler.find_overlaps()` and `Scheduler.check_conflicts()` compare the start and end of every pair of tasks on the same day, across all pets. They flag overlapping durations, not just identical start times, while tasks that only touch (one ends when the next starts) are not flagged.
+
+CLI output examples from `python main.py`:
+
+Priority-based order. The walk comes before the other high-priority tasks because *walk* is the owner's preferred type:
+
+```
+--- Step 2: Sorted by priority, then preferred category, then time (before filtering) ---
+  1. Morning walk (Dog 1) [high, walk]
+  2. Breakfast (Cat 1) [high, feeding]
+  3. Medication (Dog 1) [high, meds]
+  4. Clean litter box (Cat 1) [medium, cleaning]
+  5. Fetch play (Dog 1) [medium, play]
+  6. Brush fur (Cat 1) [low, grooming]
+```
+
+The resulting plan. High-priority tasks get the 90 minutes first, the low-priority task that doesn't fit is skipped with a reason, and the overlap between two different pets' tasks is flagged:
+
+```
+Schedule for Sample Owner on Monday, 2026-10-12
+===============================================
+  Time         Task          Pet    Priority  Duration  Time left
+  ---------------------------------------------------------------
+  08:00-08:30  Morning walk  Dog 1  high        30 min     60 min
+  08:15-08:25  Breakfast     Cat 1  high        10 min     50 min
+  09:00-09:05  Medication    Dog 1  high         5 min     45 min
+  18:00-18:40  Fetch play    Dog 1  medium      40 min      5 min
+
+⏭️ Skipped:
+  - Brush fur (Cat 1): low priority, needs 20 min, only 5 min left
+
+⚠️ Warnings:
+  ⚠️ Conflict: Morning walk (Dog 1) 08:00-08:30 overlaps Breakfast (Cat 1) 08:15-08:25
+
+⏱️ Time: 85 of 90 min used, 5 min remaining. Your tasks need 105 min in total, 15 min more than you have. Tip: shorten or reschedule a lower-priority task to fit everything.
+```
+
+## 🎨 Output Formatting
+
+**Terminal (CLI) output**, in `pawpal_system.py`:
+
+- `DailyPlan.display_plan()` prints the schedule as an aligned table using Python f-string width and alignment specifiers (for example `{text:<20}` and `{number:>5}`), with no external library. Column widths are sized to the longest task and pet name, so the table stays lined up for any input.
+- The output is split into labeled sections with emoji markers: the schedule table, **⏭️ Skipped** (each task with its reason), **⚠️ Warnings** (each conflict marked with ⚠️), and a **⏱️ Time** summary from `DailyPlan.get_time_summary()`.
+- `DailyPlan.explain_reasoning()` prints a "Why this plan" list with the reason each task was chosen.
+
+**Streamlit app**, in `app.py`:
+
+- `st.table` for the pets list and the schedule, and `st.metric` tiles for available, scheduled, and remaining minutes.
+- `st.success`, `st.warning`, and `st.info` for the time summary, depending on whether everything fits.
+- Emoji output: a ⚠️ note in the schedule row of each task that overlaps another, naming what it overlaps, and the 🐾 app icon.
+- Field-level messages: `st.error` and `st.warning` appear directly above the input they're about (for example, an overlap warning above the Time field).
+- `st.expander` for the "Why this plan?" explanation.
 
 ## 📸 Demo Walkthrough
 
