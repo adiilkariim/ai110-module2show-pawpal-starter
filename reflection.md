@@ -60,13 +60,22 @@ At first I decided not to add recurring task logic, because a weekly task would 
 
 **a. Constraints and priorities**
 
-- What constraints does your scheduler consider (for example: time, priority, preferences)?
-- How did you decide which constraints mattered most?
+My scheduler considers four constraints:
+
+1. **Priority:** high, medium, or low. High-priority tasks get the owner's time first.
+2. **Available time:** the owner's minutes per day. Tasks are added only while they fit, and the rest are skipped with a reason.
+3. **Task time:** each task happens at its own time, so the plan is shown in time order and overlapping tasks are flagged.
+4. **Preferences:** the owner's preferred task types, used only to break ties between tasks with the same priority.
+
+I decided priority matters most because in pet care, missing medication or a meal is worse than missing playtime. Available time comes next because it is the real limit for a busy owner. Preferences matter least, so I only use them as a tie-breaker; they should never push a low-priority task ahead of a high-priority one.
 
 **b. Tradeoffs**
 
-- Describe one tradeoff your scheduler makes.
-- Why is that tradeoff reasonable for this scenario?
+My scheduler fills the time budget **greedily by priority**: it goes through the tasks from most to least important and keeps each one that still fits. This doesn't always use the time in the best possible way. For example, with 50 minutes, a 45-minute high-priority hike gets scheduled first; then a 20-minute medium-priority bath doesn't fit, but a 5-minute low-priority treat does. So a lower-priority task gets in while a more important one is skipped, only because it is shorter.
+
+Finding the perfect combination would be a much harder problem (similar to the "knapsack problem"), and the result would be harder for an owner to understand. The greedy approach is simple, fast, and easy to explain ("high-priority tasks get your time first"), and the plan always says why each task was skipped. For a daily pet care plan, that clarity is worth more than squeezing out a few extra minutes.
+
+A second tradeoff: conflicts only **warn** instead of moving tasks automatically. Both overlapping tasks stay in the plan, and the owner decides which one to move, because the owner knows better than the app which task can wait.
 
 ---
 
@@ -74,13 +83,28 @@ At first I decided not to add recurring task logic, because a weekly task would 
 
 **a. How you used AI**
 
-- How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
-- What kinds of prompts or questions were most helpful?
+I used two AI tools in two separate chat sessions, each for a different job:
+
+- **Claude (Opus 5.5) in Claude Code, for building:** design review of my UML and skeleton, writing the class logic, the scheduler algorithms, the tests, connecting the Streamlit UI, and updating the UML and docs as the code changed. Its code was well structured and it didn't use much of my credit.
+- **Luna 6.5 (free), for understanding and organizing:** explaining how the app and its parts work, and helping me organize my answers and notes. It was not good for code: it often skipped steps. But using it for explanations saved me from spending Claude's credit on long explanations.
+
+The AI features that were most effective for the scheduler were **agent mode editing several files at once** (for example, adding recurrence touched `pawpal_system.py`, `main.py`, the tests, and the UML together) and **design review before coding**. Asking Claude to review my skeleton for missing relationships and bottlenecks found real problems (priority words sorting in the wrong order, times compared as text) before they turned into bugs.
+
+The most helpful prompts were specific ones that pointed at a file and asked for problems instead of solutions, like "review my skeleton for missing relationships or logic bottlenecks", and asking "what can go wrong in these calculations?" before implementing the scheduler.
+
+Using **separate sessions for different jobs** helped me stay organized: the coding session stayed focused on the code and files, and the explaining session was where I asked my "what is this and why" questions without cluttering the coding session or using up its credit.
 
 **b. Judgment and verification**
 
-- Describe one moment where you did not accept an AI suggestion as-is.
-- How did you evaluate or verify what the AI suggested?
+I rejected or changed several AI suggestions to keep the design clean and focused on the assignment:
+
+- **Date pickers in the app.** The AI added date fields so the owner could plan any day. I realized the assignment only asks for a **daily** plan for today, and the calendar controls were confusing, so I had them removed. Dates stay only inside the code, where recurrence needs them ("today + 1 day").
+- **Custom typed task types.** The AI let users type their own task types. Since the assignment doesn't require it and it caused mismatches between the preference list and the task type list, I had it removed and kept a fixed list.
+- **Extra files and features.** The AI added a `pytest.ini` file I hadn't asked for. I deleted it because the assignment didn't require it and `python -m pytest` works without it. After that I made a rule that the AI only adds what the assignment asks for, and shows me changes before applying them.
+- **Big warning boxes.** I asked for warnings to sit next to the specific field they're about instead of one general bar, and later for them to be small colored text so they don't push the inputs out of line.
+- **The time budget.** This one was my idea: I noticed the AI's scheduler used `available_minutes` behind the scenes but never showed the owner how much time was left, so I asked for a visible time summary and a "minutes left" column.
+
+To verify, I **ran everything myself**: `python main.py` to check the demo output, `python -m pytest` to confirm all 21 tests pass, and the Streamlit app to try each feature by hand. Using the app is how I found several problems, like the minutes field only stepping down to 5, the date picker confusion, and task names keeping stray quotes.
 
 ---
 
@@ -88,13 +112,22 @@ At first I decided not to add recurring task logic, because a weekly task would 
 
 **a. What you tested**
 
-- What behaviors did you test?
-- Why were these tests important?
+My test suite (`tests/test_pawpal.py`, 21 passing tests) covers:
+
+- **Core behavior:** `mark_complete()` changes the status, and adding a task increases the pet's task count.
+- **Sorting:** tasks come out in chronological order across pets, and priority sorting puts high before medium before low, with preferences breaking ties.
+- **Recurrence:** a completed daily task creates a new task for the next day, weekly tasks come back after 7 days, one-time tasks don't recur, completing twice doesn't duplicate, and tomorrow's copy isn't in today's plan.
+- **Conflict detection:** two tasks at the exact same time are flagged, overlaps between different pets are flagged, and tasks that only touch or are on different days are not.
+- **Time budget:** tasks that don't fit are skipped with a reason while a shorter later task can still fit, and completed tasks are left out without being called "skipped".
+- **Edge cases:** a pet with no tasks, an owner with no pets, invalid input (bad priority, bad time, zero duration, a task past midnight), and `edit_task()` applying all changes or none.
+
+These tests matter because the scheduler's mistakes would be quiet: a wrong sort order or a missed overlap doesn't crash anything, it just gives the owner a bad plan. The tests use a fixed date, so they give the same result on any day.
 
 **b. Confidence**
 
-- How confident are you that your scheduler works correctly?
-- What edge cases would you test next if you had more time?
+I'm fairly confident: about **4 out of 5**. All 21 tests pass, each feature has both normal and edge-case tests, and I also checked the demo output and the app by hand. I hold back one point because the greedy time budget isn't always the best fit, and a daily task that isn't completed doesn't carry over to the next day.
+
+If I had more time, I would test: a daily task left incomplete overnight, many tasks overlapping in a chain, two pets with the same name, and the Streamlit app itself (currently only the backend logic has automated tests).
 
 ---
 
@@ -102,12 +135,12 @@ At first I decided not to add recurring task logic, because a weekly task would 
 
 **a. What went well**
 
-- What part of this project are you most satisfied with?
+I'm most satisfied with the scheduler logic and how clearly it explains itself. The plan doesn't just list tasks: it shows how much time each task uses, what was skipped and exactly why, and which tasks overlap. I'm also happy that the design, the code, and the UML stayed in sync through all the changes.
 
 **b. What you would improve**
 
-- If you had another iteration, what would you improve or redesign?
+I would keep the app simpler from the start. Several features were added and later removed (date pickers, typed task types, large warning boxes), which cost time. Next time I would check each feature against the assignment before building it. I would also add saving pets and tasks to a file, so the data isn't lost when the app restarts.
 
 **c. Key takeaway**
 
-- What is one important thing you learned about designing systems or working with AI on this project?
+Being the **lead architect** means the AI writes code fast, but I have to decide what should be built. The AI tends to add more than is needed: extra features, extra files, extra options. That can make the app more confusing, not better. My job was to keep checking its work against the requirements, test it myself, say no to things that didn't belong, and ask for explanations whenever I didn't understand something I was responsible for. The best results came when I reviewed the design first and only then let the AI write the code.
